@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-petclinic
+  namespace: petclinic-dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: spring-petclinic}
+  template:
+    metadata:
+      labels: {app: spring-petclinic}
+    spec:
+      nodeSelector:
+        role: app
+      containers:
+        - name: spring-petclinic
+          image: registry.k3d.localhost:5000/spring-petclinic:latest
+          ports: [{containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: 8080}
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-petclinic
+  namespace: petclinic-dev
+spec:
+  selector: {app: spring-petclinic}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spring-petclinic
+  namespace: petclinic-dev
+spec:
+  rules:
+    - host: spring-petclinic.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-petclinic
+                port: {number: 80}
